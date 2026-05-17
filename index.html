@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecureShelf</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #222536;
+      --border: rgba(255,255,255,0.08); --text: #e8eaf0; --text2: #8b90a0;
+      --accent: #6366f1; --accent-h: #4f52d4;
+      --green: #22c55e; --red: #ef4444;
+      --green-bg: rgba(34,197,94,0.1); --red-bg: rgba(239,68,68,0.1);
+      --r: 12px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; line-height: 1.6; }
+
+    /* AUTH */
+    .auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 40px; width: 100%; max-width: 420px; }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+    .logo-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-text { font-size: 20px; font-weight: 600; }
+    .auth-title { font-size: 24px; font-weight: 600; margin-bottom: 6px; }
+    .auth-sub { color: var(--text2); font-size: 14px; margin-bottom: 28px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+    .form-group input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; transition: border-color 0.2s; }
+    .form-group input:focus { border-color: var(--accent); }
+    .btn { display: block; width: 100%; padding: 11px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; margin-top: 8px; }
+    .btn:hover { background: var(--accent-h); }
+    .auth-switch { text-align: center; margin-top: 20px; font-size: 13px; color: var(--text2); }
+    .auth-switch a { color: var(--accent); cursor: pointer; }
+    .error-msg { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+
+    /* DASHBOARD */
+    .dashboard { display: none; min-height: 100vh; }
+    .navbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-left, .nav-right { display: flex; align-items: center; gap: 12px; }
+    .conn-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+    .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+    .conn-dot.on { background: var(--green); }
+    .user-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 13px; color: var(--text2); }
+    .btn-logout { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; color: var(--text2); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-logout:hover { border-color: var(--red); color: var(--red); }
+    .main { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .section-title { font-size: 20px; font-weight: 600; }
+    .btn-add { background: var(--accent); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s; }
+    .btn-add:hover { background: var(--accent-h); }
+
+    /* DEVICE CARDS */
+    .devices-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; margin-bottom: 40px; }
+    .device-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; transition: border-color 0.3s; }
+    .device-card.abierto { border-color: rgba(239,68,68,0.5); }
+    .device-card.cerrado { border-color: rgba(34,197,94,0.3); }
+    .device-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .device-name { font-weight: 600; font-size: 15px; }
+    .device-serial { font-size: 11px; color: var(--text2); margin-top: 3px; font-family: monospace; letter-spacing: 0.5px; }
+    .status-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .status-badge.abierto { background: var(--red-bg); color: #fca5a5; }
+    .status-badge.cerrado { background: var(--green-bg); color: #86efac; }
+    .status-indicator { width: 100%; padding: 16px; border-radius: 8px; text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 10px; transition: all 0.4s; }
+    .status-indicator.abierto { background: var(--red-bg); color: #fca5a5; }
+    .status-indicator.cerrado { background: var(--green-bg); color: #86efac; }
+    .device-time { font-size: 11px; color: var(--text2); text-align: center; }
+    .empty-state { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text2); }
+    .empty-icon { font-size: 44px; margin-bottom: 14px; }
+
+    /* LOG */
+    .log-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+    .log-header { padding: 14px 20px; border-bottom: 1px solid var(--border); font-weight: 500; font-size: 14px; }
+    .log-body { max-height: 260px; overflow-y: auto; }
+    .log-entry { display: flex; align-items: center; gap: 12px; padding: 11px 20px; border-bottom: 1px solid var(--border); font-size: 13px; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+    .log-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .log-dot.abierto { background: var(--red); }
+    .log-dot.cerrado { background: var(--green); }
+    .log-text { flex: 1; }
+    .log-time { color: var(--text2); font-size: 11px; white-space: nowrap; }
+    .log-empty { padding: 24px; text-align: center; color: var(--text2); font-size: 13px; }
+
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 32px; width: 100%; max-width: 400px; }
+    .modal-title { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+    .modal-sub { color: var(--text2); font-size: 13px; margin-bottom: 24px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-cancel { flex: 1; padding: 10px; background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--text2); cursor: pointer; font-size: 14px; transition: all 0.2s; }
+    .btn-cancel:hover { border-color: var(--text2); color: var(--text); }
+    .btn-confirm { flex: 1; padding: 10px; background: var(--accent); border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s; }
+    .btn-confirm:hover { background: var(--accent-h); }
+
+    /* SERIAL INFO */
+    .serial-info { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 10px; }
+    .serial-info code { color: var(--text); font-family: monospace; font-size: 13px; letter-spacing: 1px; }
+  </style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <span class="logo-text">SecureShelf</span>
+    </div>
+
+    <!-- Login -->
+    <div id="loginForm">
+      <div class="auth-title">Bienvenido</div>
+      <div class="auth-sub">Iniciá sesión para ver tus dispositivos</div>
+      <div class="error-msg" id="loginError"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="tu@email.com"></div>
+      <div class="form-group"><label>Contraseña</label><input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()"></div>
+      <button class="btn" onclick="login()">Iniciar sesión</button>
+      <div class="auth-switch">¿No tenés cuenta? <a onclick="showRegister()">Registrate</a></div>
+    </div>
+
+    <!-- Register -->
+    <div id="registerForm" style="display:none">
+      <div class="auth-title">Crear cuenta</div>
+      <div class="auth-sub">Registrate para monitorear tus estantes</div>
+      <div class="error-msg" id="registerError"></div>
+      <div class="form-group"><label>Nombre</label><input type="text" id="registerName" placeholder="Tu nombre"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="registerEmail" placeholder="tu@email.com"></div>
+      <div class="form-group"><label>Contraseña</label><input type="password" id="registerPassword" placeholder="Mínimo 6 caracteres"></div>
+      <button class="btn" onclick="register()">Crear cuenta</button>
+      <div class="auth-switch">¿Ya tenés cuenta? <a onclick="showLogin()">Iniciá sesión</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboard">
+  <nav class="navbar">
+    <div class="nav-left">
+      <div class="logo-icon" style="width:30px;height:30px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <span style="font-weight:600;font-size:15px">SecureShelf</span>
+      <div class="conn-status">
+        <span class="conn-dot" id="connDot"></span>
+        <span id="connText">Conectando...</span>
+      </div>
+    </div>
+    <div class="nav-right">
+      <span class="user-badge" id="userBadge"></span>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="section-header">
+      <div class="section-title">Mis dispositivos</div>
+      <button class="btn-add" onclick="openModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Agregar dispositivo
+      </button>
+    </div>
+
+    <div class="devices-grid" id="devicesGrid">
+      <div class="empty-state">
+        <div class="empty-icon">📦</div>
+        <p>No tenés dispositivos todavía.<br>Agregá uno con su número de serie.</p>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Historial de eventos</div>
+    </div>
+    <div class="log-card">
+      <div class="log-header">Últimos eventos</div>
+      <div class="log-body" id="logBody">
+        <div class="log-empty">Sin eventos recientes</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-title">Agregar dispositivo</div>
+    <div class="modal-sub">Ingresá el número de serie que te dieron</div>
+    <div class="error-msg" id="modalError"></div>
+    <div class="form-group">
+      <label>Número de serie</label>
+      <input type="text" id="serialInput" placeholder="EST-XXXX-XXXX" style="font-family:monospace;letter-spacing:1px;text-transform:uppercase">
+    </div>
+    <div class="form-group">
+      <label>Nombre del dispositivo</label>
+      <input type="text" id="deviceNameInput" placeholder="Ej: Estante del laboratorio">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-confirm" onclick="addDevice()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const WS_URL = location.origin.replace('http', 'ws');
+  let token = localStorage.getItem('ss_token');
+  let userName = localStorage.getItem('ss_name');
+  let ws = null;
+  let devices = {};
+
+  if (token) showDashboard();
+
+  function showRegister() {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'block';
+  }
+  function showLogin() {
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('loginForm').style.display = 'block';
+  }
+
+  async function login() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const err = document.getElementById('loginError');
+    err.style.display = 'none';
+    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error; err.style.display = 'block'; return; }
+    token = data.token; userName = data.name;
+    localStorage.setItem('ss_token', token);
+    localStorage.setItem('ss_name', userName);
+    showDashboard();
+  }
+
+  async function register() {
+    const name = document.getElementById('registerName').value;
+    const email = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
+    const err = document.getElementById('registerError');
+    err.style.display = 'none';
+    const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password }) });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error; err.style.display = 'block'; return; }
+    token = data.token; userName = data.name;
+    localStorage.setItem('ss_token', token);
+    localStorage.setItem('ss_name', userName);
+    showDashboard();
+  }
+
+  function logout() {
+    localStorage.removeItem('ss_token'); localStorage.removeItem('ss_name');
+    token = null; userName = null;
+    if (ws) ws.close();
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'flex';
+  }
+
+  async function showDashboard() {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('userBadge').textContent = userName || 'Usuario';
+    await loadDevices();
+    connectWS();
+  }
+
+  async function loadDevices() {
+    const res = await fetch('/api/my-devices', { headers: { 'Authorization': 'Bearer ' + token } });
+    const list = await res.json();
+    devices = {};
+    list.forEach(d => devices[d.serial] = d);
+    renderDevices();
+  }
+
+  function renderDevices() {
+    const grid = document.getElementById('devicesGrid');
+    const list = Object.values(devices);
+    if (!list.length) {
+      grid.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>No tenés dispositivos todavía.<br>Agregá uno con su número de serie.</p></div>';
+      return;
+    }
+    grid.innerHTML = list.map(d => {
+      const st = (d.status || 'CERRADO').toLowerCase();
+      const icon = st === 'abierto' ? '🚨 ABIERTO' : '✅ CERRADO';
+      const time = d.lastUpdate ? 'Actualizado: ' + new Date(d.lastUpdate).toLocaleTimeString() : 'Sin datos aún';
+      return `<div class="device-card ${st}" id="card-${d.serial}">
+        <div class="device-header">
+          <div><div class="device-name">${d.name}</div><div class="device-serial">${d.serial}</div></div>
+          <span class="status-badge ${st}" id="badge-${d.serial}">${d.status || 'CERRADO'}</span>
+        </div>
+        <div class="status-indicator ${st}" id="ind-${d.serial}">${icon}</div>
+        <div class="device-time" id="time-${d.serial}">${time}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function updateDevice(serial, evento, hora) {
+    if (!devices[serial]) return;
+    devices[serial].status = evento;
+    devices[serial].lastUpdate = new Date().toISOString();
+    const st = evento.toLowerCase();
+    const icon = evento === 'ABIERTO' ? '🚨 ABIERTO' : '✅ CERRADO';
+    const card = document.getElementById('card-' + serial);
+    if (card) {
+      card.className = 'device-card ' + st;
+      document.getElementById('ind-' + serial).className = 'status-indicator ' + st;
+      document.getElementById('ind-' + serial).textContent = icon;
+      document.getElementById('badge-' + serial).className = 'status-badge ' + st;
+      document.getElementById('badge-' + serial).textContent = evento;
+      document.getElementById('time-' + serial).textContent = 'Actualizado: ' + hora;
+    }
+    addLog(devices[serial].name, evento, hora);
+  }
+
+  function addLog(name, evento, hora) {
+    const body = document.getElementById('logBody');
+    const empty = body.querySelector('.log-empty');
+    if (empty) empty.remove();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    const texto = evento === 'ABIERTO' ? 'Se abrió' : 'Se cerró';
+    entry.innerHTML = `<span class="log-dot ${evento.toLowerCase()}"></span><span class="log-text"><strong>${name}</strong> — ${texto}</span><span class="log-time">${hora}</span>`;
+    body.prepend(entry);
+    while (body.children.length > 50) body.lastChild.remove();
+  }
+
+  function connectWS() {
+    ws = new WebSocket(WS_URL);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'auth', token }));
+      document.getElementById('connDot').className = 'conn-dot on';
+      document.getElementById('connText').textContent = 'Conectado';
+    };
+    ws.onmessage = msg => {
+      const data = JSON.parse(msg.data);
+      updateDevice(data.serial, data.evento, data.hora);
+    };
+    ws.onclose = () => {
+      document.getElementById('connDot').className = 'conn-dot';
+      document.getElementById('connText').textContent = 'Reconectando...';
+      setTimeout(connectWS, 3000);
+    };
+  }
+
+  function openModal() {
+    document.getElementById('addModal').classList.add('open');
+    document.getElementById('modalError').style.display = 'none';
+    document.getElementById('serialInput').value = '';
+    document.getElementById('deviceNameInput').value = '';
+  }
+  function closeModal() { document.getElementById('addModal').classList.remove('open'); }
+
+  async function addDevice() {
+    const serial = document.getElementById('serialInput').value.trim().toUpperCase();
+    const name = document.getElementById('deviceNameInput').value.trim();
+    const err = document.getElementById('modalError');
+    err.style.display = 'none';
+    if (!serial) { err.textContent = 'Ingresá el número de serie'; err.style.display = 'block'; return; }
+    const res = await fetch('/api/add-device', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ serial, name: name || 'Mi estante' })
+    });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error; err.style.display = 'block'; return; }
+    devices[data.device.serial] = data.device;
+    renderDevices();
+    closeModal();
+  }
+</script>
+</body>
+</html>
